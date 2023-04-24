@@ -1,0 +1,91 @@
+\section*{Introduction}
+In this assignment you will explore the theory and applications of SHAP. As some portions of the assignment require running models on gpus, all starter code for the programming portions are provided in a Google Colab notebook \href{https://colab.research.google.com/drive/1taUuVkNODvoUwPVRFJ3SJz1saiYiHl1z?usp=sharing}{here}. We highly recommend saving a copy of this notebook on your own drive and running the code on Google Colab which gives you free access to gpus. Note that you must click "File $>$ Save a copy .." in order to save your edits to the notebook and run the code. When running your code, make sure you are opting to use GPUs by selecting the GPU option in "Runtime $>$ Change runtime type". 
+
+Submit a write-up using this \href{https://stanfordaiethics.github.io/assignments.html}{LaTeX template} and submit a compressed .zip file of your .ipynb notebook. Please start write-ups for each problem on a new page. 
+
+\section*{SHapley Additive exPlanations (SHAP)}
+Let $\gX, \gZ$ be the original input space and simplified input space, respectively. Further let $h_{x}: \gZ \rightarrow \X$ be a mapping function specific to an input $x$ which recovers the original inputs from the simplified inputs. For Natural Language Processing (NLP) tasks $x \in \gX = \sN^{n}$ may be a bag of words feature vector (where $n$ is the total number of possible words) and $z \in \gZ = \{0, 1\}^{n}$ may be a vector of 1's and 0's, which captures the presence/absence of each of the $n$ words in a sentence. $z$ may be viewed as meaningful ``compression'' of $x$ even though $h_{x}(z) = x$ since $h_{x}$ is a function specific to a single $x$.
+
+Let $f: \gX \rightarrow \RR$ be the original prediction model (which usually belongs to a complex model class), such as a deep \href{https://arxiv.org/abs/1706.03762}{transformer} neural network that performs sentiment classification of text sentences, and $g_x: \gZ \rightarrow \RR$ be a local explanation model which is an interpretable approximation of the original model around the neighborhood of $x$. Local explanation models seek to satisfy
+\begin{align*}
+z' \approx z \Rightarrow g_{x}(z') \approx f(h_{x}(z')).
+\end{align*}
+where $x = h_{x}(z)$. Roughly speaking, $g_{x}(z)$ attempts to fit the first-order Taylor approximation of $f(h_{x}(z))$ around $z$. For $\gX = \RR^{n}$, a common choice is to have $\gZ = \{0, 1\}^{n}$ and an explanation model $g_x$ that is linear: 
+\begin{align*}
+    g_x(z) = \phi_{0}(f, x) + \sum_{i = 1}^{n} \phi_i(f, x) z_i.
+\end{align*}
+Intuitively, $z$ is an indicator vector which only captures the presence/absence of features and $\phi_{i}(f, x)$ is a measure of how much the inclusion of feature $i$ leads to an increase in $f(x)$, and hence is representative of the importance of feature $i$ in the prediction $f(x)$. 
+
+One might wonder if such a linear explanation model $g_x$ is uniquely identifiable given $f$ and $h_x$. An astonishing result from Cooperative Game Theory is that a linear local explanation model $g_x$ which satisfies Local accuracy, Missingness, and Consistency (see Section 3 of the original \href{https://arxiv.org/pdf/1705.07874.pdf}{SHAP paper} for more details) is uniquely identifiable given the original predictor $f$ and mapping function $h_x$. While detailing these three properties are out of scope of this assignment, it suffices to understand them as highly desirable properties that we would want our explanation model $g_x$ to have. The linear coefficients of the unique solution are called \textit{Shapley Values}
+and are expressed as 
+\begin{align*}
+    \phi_{i}(f, x) = \sum_{z' \subseteq z} \frac{|z'|!(n - |z'| - 1)!}{n!}[f(h_{x}(z')) - f(h_{x}(z' \setminus i))],
+\end{align*}
+where $h_{x}(z) = x$, $z' \subseteq z$ represents all $z'$ vectors where the non-zero dimensions are a subset of the non-zero dimensions in $z$, $|z'|$ is the number of non-zero entries in $z'$, i.e the number of included features, and $z' \setminus i$ denotes setting $z_i' = 0$. (see Theorem 1 of the original \href{https://arxiv.org/pdf/1705.07874.pdf}{SHAP paper}) Again recall that $\phi_i$ is meant to capture the importance of feature $i$. One useful intuition captured by the equation for the Shapley Values is that \emph{a feature is important if it contains necessary information about making good predictions for $x$ and there are no other redundant/correlated features that contain the same information}. In other words, having access to the value of feature $i$ is the only way $f$ can make a good prediction for $x$. For such features, the prediction gap $f(h_{x}(z')) - f(h_{x}(z' \setminus i))$ will be large no matter what other features the original predictor has access to in $z'$. Accordingly, most elements of the sum in the equation above will be large making the Shapley Value high. 
+
+In practice, exact computation of Shapley Values are hard as they involve summations over sets of all possible subsets ($z' \subseteq z$) which grow exponentially with $n$. 
+Various versions of SHapley Additive exPlanation (SHAP) values may be understood as feasible approximations to the Shapley Values. 
+A commonly used template for approximation is the following:
+\begin{align*}
+    \phi_{0}(f, \bar{x}) &= \E_{x \sim p(x)}[f(x)] \numberthis \label{shap_coef_base} \\
+    \phi_{i}(f, \bar{x}) &= \E_{x \sim p(x | x_i = \bar{x}_{i})}[f(x)] - \E_{x \sim p(x)}[f(x)] \quad \textrm{for} ~ i = 1, ..., n \numberthis \label{shap_coef},
+\end{align*}
+where $p(x)$ is the data distribution. 
+$\phi_{0}(f, x)$ is often called the \textit{base value}. Intuitively, $\phi_i(f, x)$ is a measure of how much the prediction $f(x)$ changes when you fix feature $i$ to be $x_{i} = \bar{x}_i$ (the observed value for the $i$th feature), and thus once again measures how impactful feature $i$ is in making predictions. 
+
+\paragraph{Problem 1. Linear SHAP [20 points]} Let our original prediction model itself be a linear model 
+\begin{align*}
+f_{\theta}(x) = \theta_{0} + \sum_{i = 1}^{n} \theta_{i} x_{i}
+\end{align*}
+Further assume that we have feature independence so that all dimensions of $x$ are independent. Show that \eqref{shap_coef_base} and \eqref{shap_coef} can be rewritten as
+\begin{align*}
+\phi_{0}(f, \bar{x}) &= f(\E_{x \sim p(x)}[x]) \numberthis \label{linear_coef_base} \\
+\phi_{i}(f, \bar{x}) &= \theta_{i}(\bar{x}_i - \E_{x \sim p(x)}[x_i]) ~ \textrm{for} ~ i = 1, ..., n \numberthis \label{linear_coef}
+\end{align*}
+\ifanswers
+\paragraph{Solutions:} 
+$\phi_0(f, x)$ follows directly from linearity of expectation. 
+\begin{align*}
+    \phi_{i}(f, \bar{x}) 
+    &= \sum_{x} \big(\prod_{j} p(x_{j} | x_{i} = \bar{x}_{i}) \big) \sum_{i} \theta_{i} x_i - \sum_{x} \big( \prod_{j} p(x_j) \big) \sum_{i} \theta_{i}x_i \\
+    &= \sum_{x_j} p(x_j) \theta_{j}x_j - \sum_{x_j} p(x_j) \theta_{j}x_j + \sum_{x_i} p(x_i | x_{i} = \bar{x}_{i}) \theta_{i}x_i - \sum_{x_i} p(x_i) \theta_{i}x_i \\
+    &= \sum_{x_i} p(x_i | x_{i} = \bar{x}_{i}) \theta_{i}x_i - \sum_{x_i} p(x_i) \theta_{i}x_i \\
+    &= \theta_{i}\bar{x_{i}} - \theta_{i} \E[x_{i}]
+\end{align*}
+\fi
+
+\paragraph{Problem 2. Implementing Linear SHAP for movie review sentiment analysis [45 points]}
+
+
+Using the \href{https://ai.stanford.edu/~amaas/data/sentiment/}{Large Movie Review Dataset}, which contains 25,000 IMDB movie reviews, you will be asked to build a classifier to categorize a movie review as either positive or negative. Next, you will compute SHAP values to understand the contributions of a subset of features in your model.\\
+The dataset has been loaded for you in the provided starter code. The inputs $x$ have been transformed to a normalized bag of words representations of movie review sentences (using the \href{https://en.wikipedia.org/wiki/Tf%E2%80%93idf}{TF-IDF} representation), and targets $y$ represent binary category labels ``positive'' (True) and ``negative'' (False), which have been decided on by the dataset authors. \\ 
+Recall that a logistic regression model for binary classification is a parameterized function that outputs the Bernoulli probability
+\begin{align*}
+    \frac{1}{1 + e^{f_{\theta}(x)}},
+\end{align*}
+where $f_{\theta}(x) = \theta_0 + \sum_{i = 1}^{n} \theta_i x_i$ is a linear model. \\
+
+\textbf{(a). [5 points]} Print the first 10 reviews in the test set, and examine the corresponding labels. Next, examine the \verb|vectorizer.vocabulary_| dictionary, which provides mapping from words present in each review to indices in the vectorized representations. We will use this vectorized representation for training our sentiment analysis model. Select any 10 words which appear in the first sentence and which you'll be interested in examining SHAP values for. Then, select their indices, and save them into an \verb|idxs| variable.\\
+
+\textbf{(b). [5 points]} Fit a logistic model on \emph{the training set} using \verb|sklearn.linear_model.LogisticRegression| with arguments \verb|penalty='l2', C=0.1|. Report the accuracy on the \emph{test set} using the \verb|.score()| method. \\
+
+\textbf{(c). [20 points]} Compute the Linear SHAP value for the ten features you've selected in part (a) of the first test input \verb|X_test[0, idxs]| using \eqref{linear_coef_base} and \eqref{linear_coef}. 
+To estimate the expectations $\E_{x \sim p(x)}[x], \E_{x \sim p(x)}[x_i]$, use the empirical mean of the feature vectors in the \emph{training set}. (\emph{Hint: you should be computing a total of 11 values = 1 base value + 10 for each feature}). Print the 10 words with their corresponding Shapley values and interpret your findings (2-3 sentences). \\
+
+\textbf{(d). [15 points]} Now we use a \href{https://shap-lrjball.readthedocs.io/en/latest/index.html}{standardized library} to compute SHAP values. Use \verb|shap.LinearExplainer| to compute the SHAP values. For the \verb|model| argument, pass in our fitted logistic model. For the \verb|masker| argument, pass in \verb|shap.maskers.Independent|. 
+Report the SHAP values for the first ten features of the first test input \verb|X_test[0]| as we did in the previous problem using the \verb|shap_values()| method, and print the 10 words of interest with their corresponding Shapley values. How do they compare to your manually computed SHAP values from part (c)? 
+
+% \textbf{(e). [10 points]} 
+% Interpret the 
+
+% \paragraph{Problem 3. SHAP with Transformers [20 points]} This time our original predictor will be a pretrained deep \href{https://arxiv.org/abs/1706.03762}{transformer} network trained on a similar Sentiment Analysis task. Inputs to the model are sentences and our transformer attempts to predict the top $K$ emotions best labeling the sentence. As our original model is more complicated we will have to compute the SHAP values using a different approximation than \verb|LinearSHAP|. Use \verb|explainer = shap.PartitionExplainer| with the argument \verb|model=pred, masker=tokenizer|. Compute the SHAP values on sample text by directly passing \verb|sample_data| (defined in the starter code) to the explainer. Visualize the SHAP values using \verb|shap.plots.text|. Attach the visualizations in your write-up and comment on your findings. 
+
+\paragraph{Problem 3. SHAP with ConvNets [20 points]} This time our original model will be a ConvNet trained for \href{https://en.wikipedia.org/wiki/MNIST_database}{MNIST} image classification. Code for training the model is already provided in the colab notebook. \\
+
+\textbf{(a). [5 points]} 
+Use \verb|shap.DeepExplainer| with arguments \verb|model=model, data=background|. Compute the SHAP values on \verb|test_images| (defined in starter code) using \verb|.shap_values()| method of the explainer.\\
+
+\textbf{(b). [10 points]} 
+Visualize the explanations using \verb|shap.image_plot|. Attach the visualizations in your write-up (\emph{Hint: you may need to np.swapaxes or np.moveaxis to transpose your image dimensions to get proper visualizations}). \\
+
+\textbf{(c). [5 points]} In the visualized example, compare the labels assigned to MNIST images to labels predicted by the model, and interpret your observations.

@@ -1,0 +1,74 @@
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{graphicx}
+\usepackage{enumerate}
+\usepackage{enumitem}
+\usepackage[top=1in, bottom=1in, left=0.8in, right=1in]{geometry}
+\usepackage{url}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{tikz}
+\usepackage{pythonhighlight}
+\usepackage{xcolor}
+\usepackage[colorlinks = true,
+            linkcolor = blue,
+            urlcolor  = blue,
+            citecolor = blue,
+            anchorcolor = blue]{hyperref}
+
+
+\usetikzlibrary{fit,positioning}
+\usetikzlibrary{calc,arrows.meta}
+
+\newcommand{\points}
+[1]{{\textbf{[#1 points]}}}
+\newcommand{\ruleskip}{\bigskip\hrule\bigskip}
+\newcommand{\nodify}[1]{{\sc #1}} 
+\newcommand{\Size}[2]{{\rm SIZE}_{#1}(#2)}
+\newcommand{\KL}[0]{D_{\mathrm{KL}}}
+
+\newcommand{\solutions}[1]{\par {\bf Answer: } {\sf #1} }
+\newcommand{\todo}[1]{{\bf \textcolor{blue}{[TODO: #1]}}}
+\newcommand{\XL}[1]{{\bf \textcolor{red}{[Chen: #1]}}}
+
+\newcommand{\csisep}[4]{\emph{CSI-sep}_{#1}({#2};{#3} \mid {#4})}
+\newcommand{\ag}[1]{{\color{blue} [AG: #1]}}
+\newcommand{\rs}[1]{{\color{red} [RS: #1]}}
+\newcommand{\se}[1]{{\color{red} [SE: #1]}}
+\newcommand{\ys}[1]{{\color{orange} [YS: #1]}}
+\newcommand{\ke}[1]{{\color{cyan} [KH: #1]}}
+
+\renewcommand{\arraystretch}{1.5}
+
+\setlength{\parindent}{0pt} \setlength{\parskip}{0.5ex}
+\usepackage{tikz,tkz-graph}
+\usetikzlibrary{
+  matrix,
+  graphs,
+  graphs.standard,
+  positioning,chains,fit,shapes,calc,
+  decorations.pathreplacing
+}
+\input{cmd.tex}
+% switch pset and sols
+\newif\ifanswers
+\answersfalse
+%\answerstrue
+
+
+\title{CS 281 Homework 2 \ifanswers Solutions\fi}
+\author{Instructor: Carlos Guestrin \\ \texttt{agataf@cs.stanford.edu}}
+\date{Available: 04/24/2023; Due: 6:00 PM PST, 05/10/2022}
+\begin{document}
+
+\maketitle
+\vspace{-0.3in}
+
+\rule{\linewidth}{0.4pt}
+\input{sections/cs281.tex}
+%\input{sections/pa-hw1.tex}
+
+\end{document}
+
